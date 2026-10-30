@@ -1,0 +1,539 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ShopSense | Customer Spending Predictor</title>
+
+  <style>
+    /* ===================== COLORS ===================== */
+    :root {
+      --bg: #f3f6f4;
+      --card: #ffffff;
+      --ink: #14281d;
+      --muted: #5f6f66;
+      --line: #dfe7e2;
+      --green: #1f7a4d;
+      --green-dark: #155c39;
+      --green-soft: #e3f3ea;
+      --gold: #b7791f;
+      --gold-soft: #fdf3e1;
+      --grey-soft: #eef1ef;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: "Segoe UI", system-ui, -apple-system, Arial, sans-serif;
+      background: var(--bg);
+      color: var(--ink);
+      line-height: 1.5;
+    }
+
+    .container { max-width: 1150px; margin: 0 auto; padding: 0 20px; }
+
+    /* ===================== HEADER ===================== */
+    header { background: var(--green-dark); color: #fff; padding: 20px 0; }
+    header .container {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+    .brand { display: flex; align-items: center; gap: 12px; }
+    .logo {
+      width: 44px; height: 44px; border-radius: 12px;
+      background: #fff; color: var(--green-dark);
+      font-weight: 800; font-size: 20px;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .brand h1 { font-size: 24px; letter-spacing: 0.3px; }
+    .brand p { color: #cfe6d9; font-size: 13px; }
+
+    .status {
+      font-size: 13px; display: flex; align-items: center; gap: 8px;
+      background: rgba(255, 255, 255, 0.1); padding: 6px 12px; border-radius: 20px;
+    }
+    .dot { width: 9px; height: 9px; border-radius: 50%; background: #facc15; }
+    .dot.online { background: #4ade80; }
+    .dot.offline { background: #f87171; }
+
+    /* ===================== LAYOUT ===================== */
+    main.container { padding-top: 28px; padding-bottom: 50px; }
+
+    .grid { display: grid; grid-template-columns: 1fr 1.25fr; gap: 22px; align-items: start; }
+
+    .card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 24px; }
+    .card h2 { font-size: 20px; margin-bottom: 2px; }
+    .sub { color: var(--muted); font-size: 14px; margin-bottom: 18px; }
+    section { margin-top: 22px; }
+
+    /* ===================== FORM ===================== */
+    .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px 16px; }
+    .full { grid-column: 1 / -1; }
+
+    label.title { display: flex; justify-content: space-between; font-size: 13px; font-weight: 600; margin-bottom: 5px; }
+    label.title output { color: var(--green); font-weight: 700; }
+
+    input[type="number"], select {
+      width: 100%; padding: 9px 10px; font-size: 14px;
+      border: 1px solid var(--line); border-radius: 8px; background: #fff; color: var(--ink);
+    }
+    input[type="number"]:focus, select:focus { outline: 2px solid var(--green); border-color: transparent; }
+    input[type="range"] { width: 100%; accent-color: var(--green); }
+    .hint { font-size: 11px; color: var(--muted); margin-top: 2px; }
+
+    .presets { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
+    .preset {
+      border: 1px dashed var(--line); background: none; font-size: 12px;
+      padding: 5px 10px; border-radius: 6px; cursor: pointer; color: var(--muted);
+    }
+    .preset:hover { border-color: var(--green); color: var(--green); }
+
+    .btn {
+      width: 100%; border: none; background: var(--green); color: #fff;
+      font-size: 16px; font-weight: 600; padding: 13px; border-radius: 10px;
+      cursor: pointer; margin-top: 18px;
+    }
+    .btn:hover { background: var(--green-dark); }
+    .btn:disabled { opacity: 0.6; cursor: wait; }
+
+    .error {
+      background: #fee2e2; color: #b91c1c; padding: 12px; border-radius: 8px;
+      font-size: 14px; margin-top: 12px; display: none;
+    }
+
+    /* ===================== RESULTS ===================== */
+    .empty {
+      text-align: center; color: var(--muted); padding: 70px 10px;
+      border: 2px dashed var(--line); border-radius: 12px;
+    }
+
+    .spend-box {
+      display: flex; gap: 20px; align-items: center;
+      background: var(--grey-soft); border-radius: 12px; padding: 18px; margin-bottom: 16px;
+    }
+    .spend-number { font-size: 44px; font-weight: 800; color: var(--green); line-height: 1; white-space: nowrap; }
+    .spend-info strong { display: block; font-size: 15px; }
+    .spend-info p { font-size: 13px; color: var(--muted); }
+
+    .verdict { padding: 14px 16px; border-radius: 10px; font-weight: 600; margin-bottom: 16px; }
+    .verdict.high { background: var(--gold-soft); color: var(--gold); }
+    .verdict.low { background: var(--grey-soft); color: var(--muted); }
+    .verdict small { display: block; font-weight: 400; font-size: 13px; margin-top: 2px; }
+
+    table { width: 100%; border-collapse: collapse; font-size: 14px; }
+    th {
+      text-align: left; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px;
+      color: var(--muted); padding: 8px 6px; border-bottom: 2px solid var(--line);
+    }
+    td { padding: 10px 6px; border-bottom: 1px solid var(--line); }
+
+    .badge { font-size: 12px; font-weight: 700; padding: 3px 10px; border-radius: 20px; white-space: nowrap; }
+    .badge.high { background: var(--gold-soft); color: var(--gold); }
+    .badge.low { background: var(--grey-soft); color: var(--muted); }
+
+    .bar { height: 7px; background: var(--line); border-radius: 10px; overflow: hidden; flex: 1; }
+    .bar-fill { height: 100%; background: var(--green); border-radius: 10px; }
+    .mini-bar { display: flex; align-items: center; gap: 8px; }
+    .mini-bar span { width: 48px; text-align: right; font-size: 13px; }
+
+    /* ===================== PERFORMANCE ===================== */
+    .perf-grid { display: grid; grid-template-columns: 2fr 1fr; gap: 22px; }
+    .best-row td { font-weight: 700; }
+    .stats { display: grid; gap: 12px; }
+    .stat { background: var(--grey-soft); border-radius: 10px; padding: 14px; }
+    .stat b { font-size: 26px; color: var(--green); display: block; }
+    .stat span { font-size: 13px; color: var(--muted); }
+
+    /* ===================== INSIGHTS ===================== */
+    .insights { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
+    .insight { background: var(--grey-soft); padding: 16px; border-radius: 10px; }
+    .insight b { display: block; font-size: 22px; color: var(--green); }
+    .insight p { font-size: 13px; color: var(--muted); }
+
+    footer { text-align: center; color: var(--muted); font-size: 13px; padding: 20px 0 30px; }
+
+    /* ===================== MOBILE ===================== */
+    @media (max-width: 850px) {
+      .grid, .perf-grid { grid-template-columns: 1fr; }
+      .insights { grid-template-columns: 1fr 1fr; }
+      .spend-box { flex-direction: column; text-align: center; }
+    }
+    @media (max-width: 480px) {
+      .form-grid, .insights { grid-template-columns: 1fr; }
+      .hide-mobile { display: none; }
+    }
+  </style>
+</head>
+
+<body>
+
+  <!-- ===================== HEADER ===================== -->
+  <header>
+    <div class="container">
+      <div class="brand">
+        <div class="logo">S</div>
+        <div>
+          <h1>ShopSense</h1>
+          <p>Customer Spending &amp; Value Predictor &middot; 8 Machine Learning Models</p>
+        </div>
+      </div>
+      <div class="status">
+        <div class="dot" id="statusDot"></div>
+        <span id="statusText">Checking server...</span>
+      </div>
+    </div>
+  </header>
+
+  <main class="container">
+    <div class="grid">
+
+      <!-- ===================== INPUT FORM ===================== -->
+      <div class="card">
+        <h2>Customer Profile</h2>
+        <p class="sub">Enter the customer's details and press Predict.</p>
+
+        <div class="presets">
+          <button class="preset" type="button" onclick="fillExample('premium')">Example: premium</button>
+          <button class="preset" type="button" onclick="fillExample('family')">Example: young family</button>
+          <button class="preset" type="button" onclick="fillExample('borderline')">Example: borderline</button>
+        </div>
+
+        <form id="customerForm">
+          <div class="form-grid">
+            <div>
+              <label class="title" for="age">Age</label>
+              <input type="number" id="age" min="18" max="90" value="45" required>
+            </div>
+            <div>
+              <label class="title" for="income">Yearly Income</label>
+              <input type="number" id="income" min="0" max="200000" step="500" value="52000" required>
+            </div>
+
+            <div>
+              <label class="title" for="education">Education</label>
+              <select id="education">
+                <option>Basic</option>
+                <option>2n Cycle</option>
+                <option selected>Graduation</option>
+                <option>Master</option>
+                <option>PhD</option>
+              </select>
+            </div>
+            <div>
+              <label class="title" for="marital">Marital Status</label>
+              <select id="marital">
+                <option>Single</option>
+                <option selected>Married</option>
+                <option>Together</option>
+                <option>Divorced</option>
+                <option>Widow</option>
+              </select>
+            </div>
+
+            <div>
+              <label class="title" for="kids">Small Children</label>
+              <input type="number" id="kids" min="0" max="5" value="0" required>
+            </div>
+            <div>
+              <label class="title" for="teens">Teenagers</label>
+              <input type="number" id="teens" min="0" max="5" value="1" required>
+            </div>
+
+            <div class="full">
+              <label class="title" for="recency">Days Since Last Purchase <output id="recencyOut">49</output></label>
+              <input type="range" id="recency" min="0" max="99" value="49">
+            </div>
+            <div class="full">
+              <label class="title" for="visits">Website Visits Last Month <output id="visitsOut">5</output></label>
+              <input type="range" id="visits" min="0" max="20" value="5">
+            </div>
+          </div>
+
+          <button class="btn" type="submit" id="predictBtn">Predict Customer Value</button>
+          <div class="error" id="errorBox"></div>
+        </form>
+      </div>
+
+      <!-- ===================== RESULTS ===================== -->
+      <div class="card">
+        <h2>Prediction Results</h2>
+        <p class="sub">Linear Regression estimates spending. 7 classifiers decide High-Value or Regular.</p>
+
+        <div class="empty" id="emptyState">Results will appear here.</div>
+
+        <div id="results" style="display:none">
+          <div class="spend-box">
+            <div class="spend-number" id="spendValue">0</div>
+            <div class="spend-info">
+              <strong>Expected spending in 2 years</strong>
+              <p>From Linear Regression. A customer is High-Value at 400 or more. Typical error is about &plusmn;240.</p>
+            </div>
+          </div>
+
+          <div class="verdict" id="verdict"></div>
+
+          <table>
+            <thead>
+              <tr>
+                <th>Model</th>
+                <th>Result</th>
+                <th class="hide-mobile">Chance of High-Value</th>
+              </tr>
+            </thead>
+            <tbody id="modelTable"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===================== MODEL PERFORMANCE ===================== -->
+    <section class="card">
+      <h2>Model Performance</h2>
+      <p class="sub">Tested on 406 customers that the models never saw during training (20% test split).</p>
+
+      <div class="perf-grid">
+        <div>
+          <table>
+            <thead>
+              <tr>
+                <th>Classifier</th>
+                <th>Accuracy</th>
+                <th class="hide-mobile">Precision</th>
+                <th class="hide-mobile">Recall</th>
+                <th class="hide-mobile">F1</th>
+              </tr>
+            </thead>
+            <tbody id="perfTable">
+              <tr><td colspan="5">Loading...</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="stats">
+          <div class="stat"><b id="r2">-</b><span>R² of Linear Regression (share of spending differences explained)</span></div>
+          <div class="stat"><b id="mae">-</b><span>MAE: average mistake in predicted spending</span></div>
+          <div class="stat"><b id="rmse">-</b><span>RMSE: like MAE, but big mistakes count more</span></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================== INSIGHTS ===================== -->
+    <section class="card">
+      <h2>What the Data Shows</h2>
+      <p class="sub">Key findings from 2,030 cleaned customer records.</p>
+      <div class="insights">
+        <div class="insight"><b>0.79</b><p>Correlation between income and spending, the strongest factor.</p></div>
+        <div class="insight"><b>906 vs 205</b><p>Average spending with no small children vs one small child.</p></div>
+        <div class="insight"><b>-0.49</b><p>Customers who visit the website more often tend to spend less.</p></div>
+        <div class="insight"><b>210</b><p>Records removed in cleaning: repeats, missing income and impossible values.</p></div>
+      </div>
+    </section>
+  </main>
+
+  <footer>ShopSense &middot; Machine Learning Lab Midterm Project &middot; COMSATS University Islamabad</footer>
+
+
+  <script>
+    // ============================================================
+    // 1. Where is the backend?
+    //    If FastAPI serves this page, use the same address.
+    //    If the file is opened directly, use the local server.
+    // ============================================================
+    const API_URL = window.location.protocol === "file:" ? "http://127.0.0.1:8000" : "";
+
+    // All classification models and their endpoints
+    const MODELS = [
+      { name: "Logistic Regression", url: "/predict/classification" },
+      { name: "KNN", url: "/predict/knn" },
+      { name: "ANN", url: "/predict/ann" },
+      { name: "SVM", url: "/predict/svm" },
+      { name: "Decision Tree", url: "/predict/decision-tree" },
+      { name: "Naive Bayes", url: "/predict/naive-bayes" },
+      { name: "Random Forest", url: "/predict/random-forest" },
+    ];
+
+
+    // ============================================================
+    // 2. Show the slider values next to the sliders
+    // ============================================================
+    ["recency", "visits"].forEach(function (id) {
+      const slider = document.getElementById(id);
+      slider.addEventListener("input", function () {
+        document.getElementById(id + "Out").textContent = slider.value;
+      });
+    });
+
+
+    // ============================================================
+    // 3. Example buttons fill the form quickly (useful in a demo)
+    // ============================================================
+    function fillExample(type) {
+      const examples = {
+        premium:    { age: 52, income: 85000, education: "Master", marital: "Married", kids: 0, teens: 0, recency: 30, visits: 2 },
+        family:     { age: 33, income: 32000, education: "Graduation", marital: "Together", kids: 1, teens: 0, recency: 60, visits: 8 },
+        borderline: { age: 45, income: 50000, education: "Graduation", marital: "Married", kids: 0, teens: 1, recency: 50, visits: 7 },
+      };
+      const e = examples[type];
+
+      ["age", "income", "education", "marital", "kids", "teens", "recency", "visits"].forEach(function (id) {
+        document.getElementById(id).value = e[id];
+      });
+      document.getElementById("recencyOut").textContent = e.recency;
+      document.getElementById("visitsOut").textContent = e.visits;
+    }
+
+
+    // ============================================================
+    // 4. Read the form and build the data for the API
+    // ============================================================
+    function getCustomerData() {
+      return {
+        age: Number(document.getElementById("age").value),
+        education: document.getElementById("education").value,
+        marital_status: document.getElementById("marital").value,
+        income: Number(document.getElementById("income").value),
+        kids: Number(document.getElementById("kids").value),
+        teens: Number(document.getElementById("teens").value),
+        recency: Number(document.getElementById("recency").value),
+        web_visits: Number(document.getElementById("visits").value),
+      };
+    }
+
+    // Send data to one endpoint and get the JSON answer
+    async function postData(url, data) {
+      const response = await fetch(API_URL + url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      });
+      if (!response.ok) {
+        throw new Error("Server error " + response.status);
+      }
+      return response.json();
+    }
+
+
+    // ============================================================
+    // 5. When the user presses "Predict"
+    // ============================================================
+    document.getElementById("customerForm").addEventListener("submit", async function (event) {
+      event.preventDefault();   // stop the page from reloading
+
+      const button = document.getElementById("predictBtn");
+      const errorBox = document.getElementById("errorBox");
+      button.disabled = true;
+      button.textContent = "Predicting...";
+      errorBox.style.display = "none";
+
+      try {
+        const customer = getCustomerData();
+
+        // Ask the regression model and all 7 classifiers
+        const regression = await postData("/predict/regression", customer);
+        const answers = await Promise.all(
+          MODELS.map(function (m) { return postData(m.url, customer); })
+        );
+
+        showResults(regression.prediction, answers);
+      } catch (error) {
+        errorBox.textContent = "Could not get a prediction. Check the values are in range, " +
+          "and that the backend is running (uvicorn main:app --reload).";
+        errorBox.style.display = "block";
+      }
+
+      button.disabled = false;
+      button.textContent = "Predict Customer Value";
+    });
+
+
+    // ============================================================
+    // 6. Show the answers on the page
+    // ============================================================
+    function showResults(spending, answers) {
+      document.getElementById("emptyState").style.display = "none";
+      document.getElementById("results").style.display = "block";
+
+      document.getElementById("spendValue").textContent = Math.round(spending).toLocaleString();
+
+      let highVotes = 0;
+      let rows = "";
+
+      answers.forEach(function (answer, i) {
+        const isHigh = answer.prediction === 1;
+        if (isHigh) highVotes++;
+
+        // SVM does not give a probability, so we show a dash
+        let chance = "&mdash;";
+        if (answer.probability !== undefined) {
+          chance = '<div class="mini-bar"><div class="bar"><div class="bar-fill" style="width:' +
+            answer.probability + '%"></div></div><span>' + answer.probability + "%</span></div>";
+        }
+
+        rows += "<tr><td>" + MODELS[i].name + "</td>" +
+          '<td><span class="badge ' + (isHigh ? "high" : "low") + '">' + answer.result + "</span></td>" +
+          '<td class="hide-mobile">' + chance + "</td></tr>";
+      });
+
+      document.getElementById("modelTable").innerHTML = rows;
+
+      // Majority vote (4 or more out of 7)
+      const verdict = document.getElementById("verdict");
+      const majorityHigh = highVotes >= 4;
+      verdict.className = "verdict " + (majorityHigh ? "high" : "low");
+
+      let advice = majorityHigh
+        ? "Good target for the loyalty offer."
+        : "Standard marketing is enough for this customer.";
+      if (highVotes >= 2 && highVotes <= 5) {
+        advice = "The models disagree, so this is a borderline customer.";
+      }
+
+      verdict.innerHTML = highVotes + " of 7 models say: " +
+        (majorityHigh ? "High-Value Customer" : "Regular Customer") +
+        "<small>" + advice + "</small>";
+    }
+
+
+    // ============================================================
+    // 7. Load the model performance tables when the page opens
+    // ============================================================
+    async function loadPerformance() {
+      const dot = document.getElementById("statusDot");
+      const status = document.getElementById("statusText");
+
+      try {
+        const results = await (await fetch(API_URL + "/model-performance")).json();
+        const regression = await (await fetch(API_URL + "/regression-performance")).json();
+
+        dot.className = "dot online";
+        status.textContent = "Backend online";
+
+        let rows = "";
+        results.forEach(function (r, i) {
+          rows += '<tr class="' + (i === 0 ? "best-row" : "") + '">' +
+            "<td>" + r.Model + (i === 0 ? " &#9733;" : "") + "</td>" +
+            '<td><div class="mini-bar"><div class="bar"><div class="bar-fill" style="width:' +
+            r.Accuracy + '%"></div></div><span>' + r.Accuracy + "%</span></div></td>" +
+            '<td class="hide-mobile">' + r.Precision + "%</td>" +
+            '<td class="hide-mobile">' + r.Recall + "%</td>" +
+            '<td class="hide-mobile">' + r["F1-Score"] + "%</td></tr>";
+        });
+        document.getElementById("perfTable").innerHTML = rows;
+
+        document.getElementById("r2").textContent = regression["R2 Score"];
+        document.getElementById("mae").textContent = regression.MAE;
+        document.getElementById("rmse").textContent = regression.RMSE;
+      } catch (error) {
+        dot.className = "dot offline";
+        status.textContent = "Backend offline";
+        document.getElementById("perfTable").innerHTML =
+          '<tr><td colspan="5">Start the backend to see results.</td></tr>';
+      }
+    }
+
+    loadPerformance();
+  </script>
+</body>
+</html>
